@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+
+# Virtual envs
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs and training artifacts
+logs/
+*.log
+
+# Heavy model artifacts (download separately)
+output/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.gguf
+checkpoints/
+
+# Generated data (re-create via generate_v12_curriculum.py)
+data/*.jsonl
+data/*.parquet
+
+# PKC weights (download from official CARRADA-trained release)
+radarlm/pkc_backbone/weights/*.pt
+radarlm/pkc_backbone/weights/*.pth
+
+# Data caches
+.cache/
+*.npy
+__pycache__/
+
+# Build artifacts
+build/
+dist/
+*.egg

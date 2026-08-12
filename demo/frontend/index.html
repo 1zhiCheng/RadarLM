@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>RadarLM Demo - 雷达感知对话系统</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0e0f12;
+      color: #e6e8eb;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .left-panel {
+      width: 380px;
+      background: #1a1c20;
+      padding: 20px;
+      overflow-y: auto;
+      border-right: 1px solid #2a2d33;
+    }
+    .main-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .top-bar {
+      background: #1a1c20;
+      padding: 16px 20px;
+      border-bottom: 1px solid #2a2d33;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .top-bar h1 {
+      font-size: 18px;
+      color: #4ade80;
+    }
+    .top-bar .status {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .visual-section {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      padding: 16px;
+      background: #0e0f12;
+      overflow: hidden;
+    }
+    .view-card {
+      background: #1a1c20;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+    }
+    .view-card h3 {
+      font-size: 13px;
+      color: #4ade80;
+      margin-bottom: 8px;
+      width: 100%;
+    }
+    .view-card .view-image-wrapper {
+      flex: 1;
+      width: 100%;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    .view-card img, .view-card canvas {
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: pixelated;
+    }
+    .gt-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .gt-badge.has-target { background: #dc2626; color: white; }
+    .gt-badge.no-target { background: #16a34a; color: white; }
+    .chat-section {
+      height: 360px;
+      background: #1a1c20;
+      border-top: 1px solid #2a2d33;
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .message {
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      max-width: 85%;
+      line-height: 1.5;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .message.user {
+      background: #2563eb;
+      color: white;
+      margin-left: auto;
+    }
+    .message.assistant {
+      background: #2a2d33;
+      color: #e6e8eb;
+      margin-right: auto;
+    }
+    .message .meta {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-bottom: 4px;
+    }
+    .chat-input {
+      padding: 12px;
+      border-top: 1px solid #2a2d33;
+      display: flex;
+      gap: 8px;
+    }
+    .chat-input textarea {
+      flex: 1;
+      padding: 10px;
+      background: #2a2d33;
+      color: #e6e8eb;
+      border: 1px solid #3a3d43;
+      border-radius: 6px;
+      resize: none;
+      height: 50px;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .chat-input button {
+      padding: 0 20px;
+      background: #4ade80;
+      color: #0e0f12;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .chat-input button:hover { background: #22c55e; }
+    .chat-input button:disabled { background: #4a4d53; cursor: not-allowed; }
+    select, input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      background: #2a2d33;
+      color: #e6e8eb;
+      border: 1px solid #3a3d43;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    button.load-btn {
+      width: 100%;
+      padding: 10px;
+      background: #4ade80;
+      color: #0e0f12;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+    button.load-btn:hover { background: #22c55e; }
+    button.load-btn:disabled { background: #4a4d53; cursor: not-allowed; }
+    .gt-detail {
+      background: #0e0f12;
+      padding: 8px;
+      margin-top: 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .gt-detail .inst-row {
+      padding: 6px;
+      background: #1a1c20;
+      margin-bottom: 4px;
+      border-radius: 4px;
+      border-left: 3px solid;
+    }
+    .gt-detail .inst-row.car { border-color: #dc2626; }
+    .gt-detail .inst-row.pedestrian { border-color: #16a34a; }
+    .gt-detail .inst-row.cyclist { border-color: #eab308; }
+    label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .frame-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 4px;
+      background: #0e0f12;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    .frame-pill {
+      padding: 4px 8px;
+      background: #2a2d33;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .frame-pill:hover { background: #3a3d43; }
+    .frame-pill.has-target { border-left: 3px solid #dc2626; }
+    .frame-pill.no-target { border-left: 3px solid #16a34a; }
+    .frame-pill.selected { background: #4ade80; color: #0e0f12; font-weight: bold; }
+    .typing { color: #4ade80; font-style: italic; opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <div class="left-panel">
+    <h2 style="color: #4ade80; font-size: 16px; margin-bottom: 16px;">⚙️ 数据加载</h2>
+
+    <label>Sequence (序列):</label>
+    <select id="seq-select">
+      <option value="">加载中...</option>
+    </select>
+
+    <label>Frame ID (当前帧, 自动取过去 4 帧):</label>
+    <input type="text" id="frame-input" placeholder="如 000163 (6位)" value="000163">
+
+    <button class="load-btn" id="load-btn" onclick="loadFrame()">📥 加载 5 帧并编码视觉</button>
+
+    <div style="margin-top: 16px;">
+      <label>📋 该序列 frame 列表 (有目标=红框, 无目标=绿框):</label>
+      <div class="frame-pills" id="frame-pills">
+        <div style="color: #94a3b8; font-size: 11px; padding: 8px;">先选 sequence</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <label>🎯 Ground Truth 详情:</label>
+      <div class="gt-detail" id="gt-detail">
+        <div style="color: #94a3b8; font-size: 11px;">加载帧后显示</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-panel">
+    <div class="top-bar">
+      <div>
+        <h1>🚗 RadarLM 雷达感知对话系统</h1>
+        <div class="status" id="status">模型: v7 (Qwen2-VL-7B + PKC + LoRA)</div>
+      </div>
+      <div>
+        <button onclick="resetChat()" style="background: #2a2d33; color: #e6e8eb; padding: 6px 12px; border-radius: 4px; border: 1px solid #3a3d43; cursor: pointer;">🔄 清空对话</button>
+      </div>
+    </div>
+
+    <div class="visual-section">
+      <div class="view-card">
+        <h3>RD 视图 (距离-多普勒, 256×64)</h3>
+        <div class="view-image-wrapper" id="rd-wrapper">
+          <img id="rd-img" style="display:none;">
+          <canvas id="rd-canvas" width="64" height="256"></canvas>
+          <div class="gt-badge" id="rd-badge" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="view-card">
+        <h3>RA 视图 (距离-角度, 256×256)</h3>
+        <div class="view-image-wrapper" id="ra-wrapper">
+          <img id="ra-img" style="display:none;">
+          <canvas id="ra-canvas" width="256" height="256"></canvas>
+          <div class="gt-badge" id="ra-badge" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="view-card">
+        <h3>AD 视图 (角度-多普勒, 256×64)</h3>
+        <div class="view-image-wrapper" id="ad-wrapper">
+          <img id="ad-img" style="display:none;">
+          <canvas id="ad-canvas" width="256" height="64"></canvas>
+          <div class="gt-badge" id="ad-badge" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-section">
+      <div class="chat-messages" id="chat-messages">
+        <div style="color: #94a3b8; text-align: center; padding: 20px; font-size: 13px;">
+          请先在左侧加载一帧 RD/RA/AD 数据，然后开始对话<br>
+          <span style="font-size: 11px;">例如: "图中目标是什么类别?", "RD 视图 bbox?", "目标距离雷达多远?"</span>
+        </div>
+      </div>
+      <div class="chat-input">
+        <textarea id="question-input" placeholder="输入问题 (Enter 发送, Shift+Enter 换行)"></textarea>
+        <button id="send-btn" onclick="sendQuestion()">发送</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = "";  // 同一 origin
+    let currentFrame = null;
+    let chatTurn = 0;
+
+    // 加载 sequence 列表
+    async function loadSequences() {
+      try {
+        const resp = await fetch(API + "/api/seq_list");
+        const data = await resp.json();
+        const sel = document.getElementById("seq-select");
+        sel.innerHTML = "";
+        data.sequences.forEach(s => {
+          const opt = document.createElement("option");
+          opt.value = s;
+          opt.textContent = s;
+          sel.appendChild(opt);
+        });
+        if (data.sequences.length > 0) {
+          sel.value = data.sequences[0];
+          loadFrameList();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // 加载 frame 列表
+    async function loadFrameList() {
+      const seq = document.getElementById("seq-select").value;
+      if (!seq) return;
+      try {
+        const resp = await fetch(API + `/api/frame_list?seq=${seq}`);
+        const data = await resp.json();
+        const container = document.getElementById("frame-pills");
+        container.innerHTML = "";
+
+        const all_frames = [...data.sample_frames_with_target, ...data.sample_frames_no_target];
+        all_frames.forEach(f => {
+          const has_target = data.sample_frames_with_target.includes(f);
+          const pill = document.createElement("div");
+          pill.className = `frame-pill ${has_target ? 'has-target' : 'no-target'}`;
+          pill.textContent = f;
+          pill.onclick = () => {
+            document.getElementById("frame-input").value = f;
+            document.querySelectorAll(".frame-pill").forEach(p => p.classList.remove("selected"));
+            pill.classList.add("selected");
+          };
+          container.appendChild(pill);
+        });
+
+        document.getElementById("status").textContent =
+          `序列 ${seq}: ${data.total_with_target} 有目标 / ${data.total_no_target} 无目标`;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    document.getElementById("seq-select").addEventListener("change", loadFrameList);
+
+    // 加载帧
+    async function loadFrame() {
+      const seq = document.getElementById("seq-select").value;
+      const frame = document.getElementById("frame-input").value.padStart(6, "0");
+      if (!seq || !frame) {
+        alert("请选 sequence 和填 frame");
+        return;
+      }
+      const btn = document.getElementById("load-btn");
+      btn.disabled = true;
+      btn.textContent = "⏳ 加载中...";
+
+      try {
+        const resp = await fetch(API + "/api/load_frame", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seq, frame })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        currentFrame = data;
+
+        // 显示 RD (64×256, w=64 h=256), RA (256×256), AD (64×256 已 flip)
+        // PKC 检测位置: pkc_detections 数组, 每个元素含 bbox_rd/bbox_ra
+        drawView("rd", data.rd_image, data.instances, "rd_dense_points", "rd_box", 64, 256, data.pkc_detections || [], "rd");
+        drawView("ra", data.ra_image, data.instances, "ra_dense_points", "ra_box", 256, 256, data.pkc_detections || [], "ra");
+        drawView("ad", data.ad_image, [], [], null, 64, 256, data.pkc_detections || [], "ad");  // AD 无 GT (64×256)
+
+        // GT badge
+        document.querySelectorAll(".gt-badge").forEach(b => {
+          b.style.display = "block";
+          if (data.has_target) {
+            b.className = "gt-badge has-target";
+            b.textContent = `✓ ${data.instances.length} 目标`;
+          } else {
+            b.className = "gt-badge no-target";
+            b.textContent = "✗ 无目标";
+          }
+        });
+
+        // GT 详情
+        const gtDetail = document.getElementById("gt-detail");
+        const pkcs = data.pkc_detections || [];
+        let pkcHtml = '';
+        if (pkcs.length > 0) {
+          pkcHtml = '<div style="margin-top: 8px; padding: 6px; background: rgba(255,255,0,0.1); border-left: 3px solid #ffeb3b; border-radius: 4px;">'
+            + '<b style="color:#ffeb3b;">🔶 PKC 检测结果 (黄虚线):</b><br>'
+            + pkcs.map(d => `  • <b>${d.class_cn}</b> range=${d.range_m}m angle=${d.angle_deg}° doppler=${d.doppler_ms}m/s (conf=${d.confidence})`).join('<br>')
+            + '</div>';
+        } else {
+          pkcHtml = '<div style="margin-top: 8px; padding: 6px; color: #888;">🔶 PKC 未检测到目标</div>';
+        }
+        if (data.has_target) {
+          gtDetail.innerHTML = data.instances.map(inst => `
+            <div class="inst-row ${inst.class_name}">
+              <b style="color:rgb(${inst.color.join(',')})">■ GT: ${inst.class_name}</b> (id=${inst.instance_id})<br>
+              RD box: ${JSON.stringify(inst.rd_box)}<br>
+              RA box: ${JSON.stringify(inst.ra_box)}<br>
+              RD dense 点数: ${inst.rd_dense_points.length}
+            </div>
+          `).join("") + pkcHtml;
+        } else {
+          gtDetail.innerHTML = '<div style="color: #16a34a; padding: 8px;">✓ 该帧无目标</div>' + pkcHtml;
+        }
+
+        // 重置 chat
+        document.getElementById("chat-messages").innerHTML =
+          '<div style="color: #94a3b8; text-align: center; padding: 20px; font-size: 13px;">已加载 ' +
+          seq + '/' + frame + ' — 开始对话</div>';
+        chatTurn = 0;
+
+        document.getElementById("status").textContent =
+          `已加载: ${seq}/${frame} | GT: ${data.has_target ? data.instances.length + ' 目标' : '无目标'}`;
+      } catch (e) {
+        alert("加载失败: " + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "📥 加载 5 帧并编码视觉";
+      }
+    }
+
+    // 在 canvas 上画视图 + GT mask 叠加 + PKC 检测 bbox
+    function drawView(viewName, imgBase64, instances, denseField, boxField, w, h, pkcDets, viewKey) {
+      const canvas = document.getElementById(viewName + "-canvas");
+      const img = document.getElementById(viewName + "-img");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+
+      // 画背景图
+      const image = new Image();
+      image.onload = () => {
+        ctx.drawImage(image, 0, 0, w, h);
+        // 叠加 GT dense 点 (半透明)
+        if (instances && instances.length > 0) {
+          instances.forEach(inst => {
+            const color = inst.color;
+            const points = inst[denseField] || [];
+            ctx.fillStyle = `rgba(${color[0]},${color[1]},${color[2]},0.5)`;
+            points.forEach(([r, c]) => {
+              if (r >= 0 && r < h && c >= 0 && c < w) {
+                ctx.fillRect(c - 1, r - 1, 3, 3);
+              }
+            });
+            // GT bbox (实线)
+            const box = inst[boxField];
+            if (box && box.length === 2) {
+              const [[r0, c0], [r1, c1]] = box;
+              ctx.strokeStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+              ctx.lineWidth = 2;
+              ctx.strokeRect(Math.min(c0, c1), Math.min(r0, r1),
+                             Math.abs(c1 - c0), Math.abs(r1 - r0));
+            }
+          });
+        }
+        // 叠加 PKC 检测 bbox (黄色虚线, 与 GT 对比)
+        if (pkcDets && pkcDets.length > 0) {
+          pkcDets.forEach(det => {
+            let box = null;
+            if (viewKey === "rd" && det.bbox_rd) box = det.bbox_rd;
+            else if (viewKey === "ra" && det.bbox_ra) box = det.bbox_ra;
+            // AD 暂无 PKC bbox (decoder 不输出 AD bbox)
+            if (box && box.length === 4) {
+              const [r0, c0, r1, c1] = box;
+              ctx.strokeStyle = "rgb(255, 255, 0)";  // 黄色
+              ctx.lineWidth = 2;
+              ctx.setLineDash([4, 3]);  // 虚线
+              ctx.strokeRect(Math.min(c0, c1), Math.min(r0, r1),
+                             Math.abs(c1 - c0), Math.abs(r1 - r0));
+              ctx.setLineDash([]);  // 重置
+              // 标记: 在 bbox 左上角标 PKC 距离/类别
+              const label = `${det.class_cn} ${det.range_m}m`;
+              ctx.fillStyle = "rgba(0,0,0,0.7)";
+              ctx.fillRect(Math.min(c0, c1), Math.max(0, Math.min(r0, r1) - 14), label.length * 7, 14);
+              ctx.fillStyle = "rgb(255, 255, 0)";
+              ctx.font = "11px sans-serif";
+              ctx.fillText(label, Math.min(c0, c1) + 1, Math.max(11, Math.min(r0, r1) - 3));
+            }
+          });
+        }
+      };
+      image.src = "data:image/png;base64," + imgBase64;
+    }
+
+    // 发送问题
+    async function sendQuestion() {
+      const input = document.getElementById("question-input");
+      const q = input.value.trim();
+      if (!q) return;
+      if (!currentFrame) {
+        alert("请先加载一帧数据");
+        return;
+      }
+      input.value = "";
+
+      const messages = document.getElementById("chat-messages");
+      // 显示用户问题
+      messages.innerHTML += `<div class="message user"><div class="meta">你 (Turn ${chatTurn + 1})</div>${escape(q)}</div>`;
+      // 显示等待
+      const waitMsg = document.createElement("div");
+      waitMsg.className = "message assistant typing";
+      waitMsg.innerHTML = '<div class="meta">RadarLM</div>推理中...';
+      messages.appendChild(waitMsg);
+      messages.scrollTop = messages.scrollHeight;
+
+      const btn = document.getElementById("send-btn");
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch(API + "/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: q })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        waitMsg.classList.remove("typing");
+        waitMsg.innerHTML = `<div class="meta">RadarLM (${data.elapsed_sec}s)</div>${escape(data.answer)}`;
+        chatTurn = data.chat_turn;
+        messages.scrollTop = messages.scrollHeight;
+      } catch (e) {
+        waitMsg.classList.remove("typing");
+        waitMsg.innerHTML = `<div class="meta" style="color: #dc2626;">错误</div>${escape(e.message)}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function resetChat() {
+      await fetch(API + "/api/reset_chat", { method: "POST" });
+      document.getElementById("chat-messages").innerHTML =
+        '<div style="color: #94a3b8; text-align: center; padding: 20px; font-size: 13px;">对话已重置</div>';
+      chatTurn = 0;
+    }
+
+    function escape(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
+
+    document.getElementById("question-input").addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendQuestion();
+      }
+    });
+
+    // 启动
+    loadSequences();
+  </script>
+</body>
+</html>

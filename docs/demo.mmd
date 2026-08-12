@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant U as User
+    participant FE as Frontend (HTML/JS)
+    participant BE as Backend (Flask)
+    participant PKC as PKC + Decoder
+    participant VLM as Qwen2-VL (merged + LoRA)
+
+    U->>FE: pick seq + frame
+    FE->>BE: POST /api/load_frame
+    BE->>PKC: 5-frame RD/RA/AD → x9 logits
+    PKC->>BE: object list + GT mask
+    BE->>FE: GT (red) + PKC (yellow dashed) + chat history
+    U->>FE: "图中是否有目标？"
+    FE->>BE: POST /api/chat
+    BE->>PKC: re-encode (if needed)
+    BE->>VLM: prompt = system + image + obj_text + Q
+    VLM->>BE: generated answer
+    BE->>BE: rule-based override for numeric QA
+    BE->>FE: answer

@@ -1,0 +1,26 @@
+flowchart LR
+    subgraph INPUT["📡 Input — 5 RD/RA/AD spectrograms"]
+        I1["cur-4"] --> I2["cur-3"] --> I3["cur-2"] --> I4["cur-1"] --> I5["cur"]
+    end
+
+    INPUT --> PKC
+
+    subgraph PKC["🧠 PKC (Peak Convolutional)"]
+        P1["3D conv (5 → 1 temporal)"] --> P2["ASPP + decoder"]
+        P2 --> P3["x9 logits (4 classes, 256×64 + 256×256)"]
+    end
+
+    P3 --> DEC
+
+    subgraph DEC["🔧 Hard Decoder"]
+        D1["argmax + connected components"] --> D2["object list<br/>{class, range_m, angle_deg,<br/>doppler_ms, bbox}"]
+    end
+
+    D2 --> VLM
+
+    subgraph VLM["💬 Qwen2-VL-7B + LoRA (3-stage curriculum)"]
+        V1["Stage 1: image + full list"] --> V2["Stage 2: image + partial"]
+        V2 --> V3["Stage 3: image only"]
+    end
+
+    VLM --> OUT["📝 Answer (text)"]
