@@ -7,6 +7,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Dataset: CARRADA](https://img.shields.io/badge/Dataset-CARRADA-orange.svg)](https://github.com/CAOR-MINES-ParisTech/carrada)
 
+<p align="center">
+  <img src="docs/assets/demo_screenshot.png" width="90%" alt="RadarLM demo — frame 172, car detection with GT mask (red) and PKC bbox (yellow dashed)">
+</p>
+
 RadarLM is a multimodal perception system for **autonomous driving radar**, decoupling a CNN-based radar encoder (PKC) from a vision-language model (Qwen2-VL) via a hard decoder. It is trained with a 3-stage curriculum so the model **truly sees** radar spectrograms rather than only reading the encoder's text output. An end-to-end interactive demo is included.
 
 **Key result on CARRADA (1500 val + 1500 test samples):**
