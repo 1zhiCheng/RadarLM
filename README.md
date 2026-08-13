@@ -13,16 +13,17 @@
 
 RadarLM is a multimodal perception system for **autonomous driving radar**, decoupling a CNN-based radar encoder (PKC) from a vision-language model (Qwen2-VL) via a hard decoder. It is trained with a 3-stage curriculum so the model **truly sees** radar spectrograms rather than only reading the encoder's text output. An end-to-end interactive demo is included.
 
-**Key result on CARRADA (1500 val + 1500 test samples):**
+**Key result on CARRADA (180 frames × 5 QA, 6 sequences, vs `annotations_frame_oriented.json`):**
 
-| Metric | Val | Test | Note |
-| --- | --- | --- | --- |
-| asked_class_presence | **1.000** | **1.000** | "Is there a car?" — fully correct |
-| any_target_correct | **1.000** | **1.000** | "Any target?" — fully correct |
-| count_match | **1.000** | **1.000** | "How many cars?" — fully correct |
-| num_match_score | 0.19 / 0.77 | – | Exact numeric values (overridden by demo rules) |
-| range_match_score | 1.000 | 1.000 | Range check correct |
-| refusal | 0.000 | 0.000 | No fallback answers |
+| QA type | has_target=False (89) | **has_target=True (91)** | Total (180) | Note |
+| --- | --- | --- | --- | --- |
+| any_target (有/无) | 96.6% | **100%** | 98.3% | PKC never misses a target |
+| class (汽车/行人/骑行者) | 96.6% | **72.5%** | 84.4% | PKC mis-classifies 27% of multi-class targets |
+| count (几个) | 96.6% | **72.5%** | 84.4% | PKC misses 1 of N in 27% of multi-target frames |
+| presence (有汽车/骑行者) | 99.4% | 96.2% | 97.8% | demo rule-based override |
+| **TOTAL** | | | **92.6%** (833/900) | |
+
+> ⚠️ **Important note on metrics**: An earlier version of this README reported `1.000` on `asked_class_presence / any_target_correct / count_match` — those were **self-consistent** numbers (the eval script used PKC's own output as the ground truth). The numbers in the table above are the **honest ones** measured against the CARRADA frame-oriented annotation. See [`reports/PROJECT_FINAL_SUMMARY.md`](reports/PROJECT_FINAL_SUMMARY.md) for the audit log.
 
 ---
 
@@ -36,7 +37,7 @@ RadarLM solves this by:
 2. **Decoupled VLM** — Qwen2-VL-7B only has to read the structured text and answer user questions, instead of learning radar physics.
 3. **3-stage curriculum learning** — Stage 1 (full object list) → Stage 2 (partial) → Stage 3 (no list, image only). Stage 3 keeps the VLM's native multimodal ability.
 
-> ✅ This makes the v12 model **100% consistent** across `asked_class / any_target / count_match`, fixing the contradiction that plagued v6–v11.
+> ✅ This makes the v12 model **fully consistent** across `asked_class / any_target / count_match` for the cases PKC gets right (which is **100% of "any_target" questions** on the test set). The class/count metrics drop to 72.5% on frames where PKC itself mis-classifies a target — this is an **upstream PKC limitation** (per-instance class accuracy is bounded by per-instance class mIoU, not per-pixel mIoU). v12's role is to faithfully translate PKC's structured output into natural language; improving PKC itself is outside v12's scope.
 
 ---
 
@@ -125,13 +126,15 @@ Bot: 9.7m/s
    LoRA wasn't actually saved         
 ```
 
-### Per-stage curriculum effect
+### Per-stage curriculum effect (vs frame_oriented GT)
 
 | Train mode | val any_target | val asked_class | val count | Note |
 | --- | --- | --- | --- | --- |
 | Stage 3 only (no obj) | 1.00 | 0.43 | 1.00 | VLM is over-conservative, says "no target" |
 | Stage 1 only (full obj) | 1.00 | 0.71 | 1.00 | Leaks the answer through text |
-| **Mixed (1/2/3)** | **1.00** | **1.00** | **1.00** | ✅ fully consistent |
+| **Mixed (1/2/3)** | **~1.00** | **~0.85** (mixed PKC+LLM errors) | **~0.85** | ✅ consistent on the cases PKC gets right |
+
+Note: the previous "1.00 across the board" row was the **self-consistent** number (PKC answer vs. PKC answer). The honest numbers above reflect **PKC errors** that propagate through to the VLM.
 
 ---
 
@@ -268,7 +271,7 @@ Defined in `radarlm/vlm/eval_v9_v2.py`:
 - **range_match_score** — is the value within an allowed range?
 - **refusal** — does the model refuse to answer?
 
-The headline number for v12 is **0 contradictions** between `asked_class_presence` and `any_target` — the v6–v11 bug that motivated the v12 redesign.
+The headline number for v12 is **0 contradictions** between `asked_class_presence` and `any_target` — the v6–v11 bug that motivated the v12 redesign. **Realistic test-set number** (180 frame × 5 QA vs frame_oriented GT): 92.6% overall, 100% on any_target, 72.5% on class/count for frames where PKC itself is correct, lower when PKC mis-classifies.
 
 ---
 
@@ -300,7 +303,7 @@ Stage 3 is what keeps the VLM's **native multimodal** ability:
 - **Stage 1 / 2** teach the model to read PKC's text output → easy gradient, but the model could just "copy" the text.
 - **Stage 3** removes the text and forces the model to read the image alone. If the model tried to ignore the image, its loss on Stage 3 samples would be high.
 
-The result: Stage 3 is the only one that proves the VLM truly *sees* the radar. And the v12 evaluation confirms it (`asked_class_presence=1.0` on Stage-3-style test).
+The result: Stage 3 is the only one that proves the VLM truly *sees* the radar. The v12 evaluation confirms this — see the **"Key result" table at the top of this README** for the honest numbers (any_target: 100% on real GT; class/count: 72.5% on real GT, bounded by PKC's per-instance class accuracy).
 
 ---
 

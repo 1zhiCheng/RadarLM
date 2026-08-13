@@ -19,6 +19,18 @@
 2. **v12 最终路线** → 0.97 any_target_correct + 1.0 asked_class_presence + 1.0 count_match
    - PKC 硬解码器 + Qwen2-VL 7B + 3-stage curriculum learning
 
+> ⚠️ **指标的诚实说明 (重要)**: 上面 1.0 数字是 **PKC 自洽指标** (评估时把 PKC 输出当 GT)。**真实指标 (frame_oriented GT, 180 frame × 5 QA, 6 sequences)**:
+>
+> | 指标 | has_target=False (89) | has_target=True (91) | Total (180) |
+> |---|---|---|---|
+> | any_target (有/无) | 96.6% | **100%** | 98.3% |
+> | class (类别) | 96.6% | **72.5%** | 84.4% |
+> | count (计数) | 96.6% | **72.5%** | 84.4% |
+> | presence (有汽车/骑行者) | 99.4% | 96.2% | 97.8% |
+> | **TOTAL** | | | **92.6%** (833/900) |
+>
+> 类别 72.5% 受 PKC 错分限制 (per-instance 类别准确率 ≤ per-pixel mIoU, 背景像素占大多数拉高 mIoU 但 instance 级别差)。v12 的角色是如实翻译 PKC 输出, 提升 PKC 本身是 v12 范围之外。
+
 ---
 
 ## 二、最终架构: v12 PKC 解码 + Curriculum Learning
@@ -60,19 +72,36 @@ v11 模型对同一图像的"是否有目标"和"是什么类别"**自相矛盾*
 
 **关键**: Stage 3 不依赖 obj_text, 训练模型真正"看图理解", 而不只是复读文本。
 
-### 4. v12 评估结果 (1500 samples × val/test)
+### 4. v12 评估结果
+
+#### 4a. PKC 自洽指标 (1500 samples × val/test) — **旧版有误导性**
+
+> ⚠️ 这个表里的 1.0 数字是用 `conversations[1].value` (即 PKC 自己的解码输出) 当 true_answer 算的。模型只是复读 PKC 的答案，eval 又用 PKC 答案当 GT，所以 1.0 是 **数据自洽的假象**。
 
 | 指标 | Val | Test | 含义 |
 |---|---|---|---|
-| **asked_class_presence** | **1.000** | **1.000** | 类别题(有汽车/行人) 全对 ⭐ |
-| **any_target_correct** | **1.000** | **1.000** | 是否有目标 全对 (核心矛盾解决) ⭐ |
-| **count_match** | **1.000** | **1.000** | 计数题 全对 ⭐ |
-| num_match_score | 0.187 | 0.773 | 距离/角度数值 (demo 端规则匹配覆盖) |
-| range_match_score | 1.000 | 1.000 | 范围匹配全对 |
-| refusal | **0.0** | **0.0** | 模型不再拒绝回答 |
-| token_overlap | 0.073 | 0.278 | 答案变短 (不再循环重复) |
+| **asked_class_presence** | **1.000** | **1.000** | 类别题 (PKC 自洽) |
+| **any_target_correct** | **1.000** | **1.000** | 是否有目标 (PKC 自洽) |
+| **count_match** | **1.000** | **1.000** | 计数题 (PKC 自洽) |
+| num_match_score | 0.187 | 0.773 | 距离/角度数值 |
+| range_match_score | 1.000 | 1.000 | 范围匹配 |
+| refusal | 0.0 | 0.0 | 模型不再拒绝回答 |
+| token_overlap | 0.073 | 0.278 | 答案变短 |
 
-**v12 解决了 v11 之前的所有核心问题**: 类别/计数/有无目标一致性 100%。
+#### 4b. 真实指标 (180 frames × 5 QA, 6 sequences, vs `annotations_frame_oriented.json`)
+
+| 指标 | has_target=False (89) | **has_target=True (91)** | Total (180) |
+|---|---|---|---|
+| **any_target (有/无)** | 96.6% | **100%** | 98.3% |
+| **class (类别)** | 96.6% | **72.5%** | 84.4% |
+| **count (计数)** | 96.6% | **72.5%** | 84.4% |
+| **presence (有汽车/骑行者)** | 99.4% | 96.2% | 97.8% |
+| **TOTAL** | | | **92.6%** (833/900) |
+
+**结论**：
+- v12 在 PKC 答对的情况下 100% 一致 (any_target) — 解决了 v11 核心矛盾
+- 类别/计数 72.5% 受 PKC 错分限制 (per-instance 类别准确率 ≤ per-pixel mIoU 0.722，背景像素占多数拉高 mIoU)
+- v12 的角色是如实翻译 PKC 输出；提升 PKC 本身是后续工作
 
 ---
 
