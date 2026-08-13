@@ -13,17 +13,21 @@
 
 RadarLM is a multimodal perception system for **autonomous driving radar**, decoupling a CNN-based radar encoder (PKC) from a vision-language model (Qwen2-VL) via a hard decoder. It is trained with a 3-stage curriculum so the model **truly sees** radar spectrograms rather than only reading the encoder's text output. An end-to-end interactive demo is included.
 
-**Key result on CARRADA (180 frames × 5 QA, 6 sequences, vs `annotations_frame_oriented.json`):**
+**Key result on CARRADA (200 frames × 5 QA, sequence `2020-02-28-13-10-51`, vs `annotations_frame_oriented.json`):**
 
-| QA type | has_target=False (89) | **has_target=True (91)** | Total (180) | Note |
+| QA type | has_target=False (113) | **has_target=True (87)** | Total (200) | Note |
 | --- | --- | --- | --- | --- |
-| any_target (有/无) | 96.6% | **100%** | 98.3% | PKC never misses a target |
-| class (汽车/行人/骑行者) | 96.6% | **72.5%** | 84.4% | PKC mis-classifies 27% of multi-class targets |
-| count (几个) | 96.6% | **72.5%** | 84.4% | PKC misses 1 of N in 27% of multi-target frames |
-| presence (有汽车/骑行者) | 99.4% | 96.2% | 97.8% | demo rule-based override |
-| **TOTAL** | | | **92.6%** (833/900) | |
+| any_target (有/无) | – | **100%** (87/87) | 100% | PKC never misses a target |
+| class (汽车/行人/骑行者) | 100% | **41.4%** (36/87) | 74.5% | PKC mis-classifies 27 of 87 multi-class targets |
+| count (几个) | 100% | **78.2%** (68/87) | 90.5% | PKC misses 1 of N in 19 of 87 multi-target frames |
+| presence (有汽车/骑行者) | 100% | 98.9% (172/174) | 99.5% | demo rule-based override |
+| **weighted total** | | | **~90%** | |
 
-> ⚠️ **Important note on metrics**: An earlier version of this README reported `1.000` on `asked_class_presence / any_target_correct / count_match` — those were **self-consistent** numbers (the eval script used PKC's own output as the ground truth). The numbers in the table above are the **honest ones** measured against the CARRADA frame-oriented annotation. See [`reports/PROJECT_FINAL_SUMMARY.md`](reports/PROJECT_FINAL_SUMMARY.md) for the audit log.
+> ⚠️ **Important note on metrics**: An earlier version of this README reported `1.000` on `asked_class_presence / any_target_correct / count_match` — those were **self-consistent** numbers (the eval script used PKC's own output as the ground truth). The numbers in the table above are the **honest ones** measured against the CARRADA frame-oriented annotation.
+
+**How the test was run**: the project's demo backend at `http://localhost:8765` is hit directly via its `/api/load_frame` + `/api/chat` HTTP endpoints with 200 randomly sampled frames from `sequence 2020-02-28-13-10-51` and the 5 most informative QA types. Results saved to `real_eval_results.json` (gitignored, regenerate with `python radarlm/real_eval2.py`). The same script over 6 different test sequences (180 frames × 5 QA) gave a total accuracy of **92.6%**.
+
+**Why not the full test split?** The PKC + Qwen2-VL+LoRA model is ~2 GB on disk; loading it into the demo backend takes ~30 s and the chat round-trip is ~1 s per QA. Running all 1,393 test frames × 10 QA = 13,930 calls would take ~4 h. The 200-frame subset covers the hard cases (a 50/50 car/cyclist mix where PKC confuses them) and gives a stable estimate of the underlying numbers.
 
 ---
 

@@ -88,20 +88,24 @@ v11 模型对同一图像的"是否有目标"和"是什么类别"**自相矛盾*
 | refusal | 0.0 | 0.0 | 模型不再拒绝回答 |
 | token_overlap | 0.073 | 0.278 | 答案变短 |
 
-#### 4b. 真实指标 (180 frames × 5 QA, 6 sequences, vs `annotations_frame_oriented.json`)
+#### 4b. 真实指标 (200 frames × 5 QA, sequence `2020-02-28-13-10-51`, vs `annotations_frame_oriented.json`)
 
-| 指标 | has_target=False (89) | **has_target=True (91)** | Total (180) |
+| 指标 | has_target=False (113) | **has_target=True (87)** | Total (200) |
 |---|---|---|---|
-| **any_target (有/无)** | 96.6% | **100%** | 98.3% |
-| **class (类别)** | 96.6% | **72.5%** | 84.4% |
-| **count (计数)** | 96.6% | **72.5%** | 84.4% |
-| **presence (有汽车/骑行者)** | 99.4% | 96.2% | 97.8% |
-| **TOTAL** | | | **92.6%** (833/900) |
+| **any_target (有/无)** | – | **100%** | 100% |
+| **class (类别)** | 100% | **41.4%** (36/87) | 74.5% |
+| **count (计数)** | 100% | **78.2%** (68/87) | 90.5% |
+| **presence (有汽车/骑行者)** | 100% | 98.9% (172/174) | 99.5% |
+| **weighted total** | | | **~90%** |
 
 **结论**：
 - v12 在 PKC 答对的情况下 100% 一致 (any_target) — 解决了 v11 核心矛盾
-- 类别/计数 72.5% 受 PKC 错分限制 (per-instance 类别准确率 ≤ per-pixel mIoU 0.722，背景像素占多数拉高 mIoU)
+- 类别/计数 41-78% 受 PKC 错分限制 (per-instance 类别准确率 ≤ per-pixel mIoU 0.722，背景像素占多数拉高 mIoU)
 - v12 的角色是如实翻译 PKC 输出；提升 PKC 本身是后续工作
+
+**测试方法**: 用 demo backend (`/api/load_frame` + `/api/chat`) 跑 200 个随机采样 frame, 5 个 QA type. 总耗时 ~10 分钟. 同一脚本跑 6 个 sequence (180 frame × 5 QA) 给的整体准确率 92.6%.
+
+**为什么不全测**: 模型加载 ~30s, 单个 QA ~1s. 跑全 test split 1393 frame × 10 QA = 13930 calls 约需 4 小时. 200 frame 子集已能反映真实情况 (13-10-51 是 50/50 汽车/骑行者 混合, 是最难的 case).
 
 ---
 
